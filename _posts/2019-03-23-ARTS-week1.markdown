@@ -1,0 +1,68 @@
+---
+layout: post
+title:  "ARTS Week1"
+date:   2019-03-23 21:50:20 -0400
+categories: arts 
+---
+Background: [ARTS activity](https://www.zhihu.com/question/301150832)
+
+
+### Leetcode Problem Sharing
+
+[Construct Binary Search Tree from Preorder Traversal](https://leetcode.com/problems/construct-binary-search-tree-from-preorder-traversal/)
+
+Solution: A binary search tree is given in this problem where every node satisfy the conditions that node.left.val < node.val and node.right.val > node.val. Therefore, every BST node has an implicit attached interval which defines the range of node value falls in between. Let's take the example of the following tree and see how these intervals look like:
+
+                        8 
+                    /       \
+                   5         10
+                /    \          \
+               1      7          12
+
+                         (-INF, INF) 
+                        /           \
+              (-INF, 8)             (8, INF) 
+            /           \                   \
+       (-INF, 5)      (5, 8)                (10, INF)
+
+
+Each BST node is attached with an interval and the root node is attached with (-INF, INF). Except root node, each attached interval is determined by the attached interval of its parent node and whether it is its parent's left child or right child.
+* Left child's interval: (lower bound of parent, parent's value)
+* Right child's interval: (parent's value, upper bound of parent)
+
+Therefore, given the preorder traversal of a BST, we can rearrange the tree structure by this property of BST. The main idea is to traverse the preorder nodes from the input, find the parent of the current node. If a node satisfies the following condition, then it is the current node's parent:
+* It lies in front of the current node in the pre-order.
+* If current value is within the node's left interval and the node's left child is undefined,
+* or if current value is within the node's right interval and node's right child is undefined.
+
+Since we need to keep trace of the nodes from top to bottom and then go to another branch, stack is a good choice to hold the nodes and the corresponding intervals during the reconstruction. Iterate the preorder input, find the parent in the stack, then recalculate the interval and push node's value, the interval into the stack and continue the iteration. Here is the solution:
+
+{% highlight python %}
+class Solution(object):
+    def bstFromPreorder(self, preorder):
+        """
+        :type preorder: List[int]
+        :rtype: TreeNode
+        """
+        if not preorder:
+            return None
+        root = TreeNode(preorder[0])
+        stk = [(root, -1000, 1000)]
+        for num in preorder[1:]:
+            while stk:
+                cur_node, left, right = stk[-1]
+                if not left < num < right:
+                    stk.pop(-1)
+                    continue
+                if cur_node.left == None and num < cur_node.val:
+                    new_node = TreeNode(num)
+                    cur_node.left = new_node
+                    stk.append((new_node, left, cur_node.val))
+                    break
+                if cur_node.right == None and num > cur_node.val:
+                    new_node = TreeNode(num)
+                    cur_node.right = new_node
+                    stk.append((new_node, cur_node.val, right))
+                    break
+        return root
+{% endhighlight %}
