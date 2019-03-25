@@ -66,3 +66,113 @@ class Solution(object):
                     break
         return root
 {% endhighlight %}
+
+### Reading
+
+The Google File System
+
+1. Design Assumption: The GFS design is based on the observations file system workloads from Google.
+    * The system is built from many inexpensive commodity Linux machines -- failures are very common.
+    * FS stores modest number of large files (size in MB or even GB).
+    * Two types of common workloads: large amount of streaming read and small amount of random reads; large sequential write(append). GFS is to optimize those two workloads rather than providing an more efficient FS on all utility.
+    * FS should provide well-defined semantics for conncurrent write.
+    * High throughput rather than low latency is the most important requirement of GFS applications.
+
+2. Interface
+    * GFS doesn't provide APIs that are compliant with POSIX but adapts to hierachical FS and CRUD operations. 
+    > (GFS abstracts a layer above Linux file system to achieve their goals on performance, availability, reliability and scalability, so they provide GFS-style APIs. That means the clients are expected to be cooperate. However, the design of GFS guarantees the simplicity of client's implementation.)
+    * Low cost snapshots of files / directories.
+
+3. Architecture
+    * Cluster: only one master and hundreds of chunk servers
+    > (here it is chunk server not slave server because chunk is not a simple copy of master).
+        * Single master:
+            * Benefits: simplicity consideration
+            * Precondition: must minimize its involvement in reads and writes.
+            * Role: control center and store meta data.
+        * Chunk server:
+            * Benefits: scalable
+            * Role: data storage, consistency and atomicity of record append is acquired here.
+            * use large chunk size to reduce numbers of requests of clients and reduce network overhead when operations are batched and reduce the size of meta data stored in the master.
+    * Meta data:
+        * What is included: files and chunk namespace, mapping from files to chunks, location of chunk replicas
+        > The first and second type of meta data is persistent as operation logs on master and remote machine. The third one is synchronized from chunk servers to master when starting up. The third one is synchronized from chunk servers to master when starting up. The third one is synchronized from chunk servers to master when starting up. The third one is synchronized from chunk servers to master when starting up. This makes sure that the meta data is small enough to fit in the master's memory to achieve fast and efficient performance and enable the master to scan the state of the cluster periodically (like garbage collection, re-replication, rebalance)
+        * Chunk location: synchronize through heart-beat messages.
+        * Operation log: 
+            * persisitent
+            * changes are not visible to clients until the logs are flushed.
+            * logs are batched to process to reduce the impact on the system throughput.
+    * Consistency model:
+        * file namespace mutations are atomic.
+        * consistency and definedness.
+        
+4. System Interaction
+    * Lease and Muation Order: master assigns a primary from the chunk servers with a lease and primary decides the concurrent mutations order to apply on all chunks. 
+    > lease is a common tools to remain a system in some states for a while in stateless system.
+        * primary decides the sequential order of concurrent mutations.
+        * primary can ask for extension before expiration if ongoing mutations on this chunks exist.
+        * a new primary is granted if the current primary fails. Heart-beat messages can bring the state of chunks to the master.
+    * Data Flow:
+        * data is pushed along a linear chain to fully utilize the outbound bandwidth of a chunk server.
+        * the chain is formed by chunk servers and they all link to the closest chunk server by IP address.
+        * pipelining - start forwarding as soon as data is received.
+        > something like pipeline in Linux
+    * Atomic Record Appends:
+        * usage: multiple producers/single consumer model; merged result from clients.
+        * lazy allocation for chunk space:
+    * Snapshots
+
+5. Master Operation
+    * Namespace Management and Locking:
+        * no data structure for directory
+        > linear table for all files and directories
+        * requires many locks recursively
+        > the table is in the memory, so it is fast enough to apply locks recursively.
+        * when creating files, read locks are applied on upper level directories and write lock on the creating file.
+        > no other update to directories is permitted then and duplicate creation of file is not allowed.
+        * locks are applied at some orders to prevent deadlock
+        > break the occurrence of circular wait to prevent deadlock
+    * Replica Replacement Policy
+        * to maximize data reliablity and availability, maximize network bandwidth utilization.
+        * spread data across racks rather than only across machine
+        * can exploit the aggregate bandwidth of multi-racks.
+    * Creation, Re-replication, Rebalancing
+        * Chunk Creation
+            * equalize disck utility
+            * prevent imbalance of chunk creation over time.
+            > further for load balance, the more chunks on a chunk server, the higher possibility of the server be affected by the upcoming mutations.
+            * replica across racks
+        * Replica Re-replication 
+            * happens when the availability falls to a specific level
+            * a chunk has been corrupted.
+            * prioritize the procedure
+            > something really bad happens, make replication for those servers first.
+        * Rebalancing
+    * Garbage Collection
+        * Mechanism
+            * deletion of a file is logged
+            * rename the deleted file to a hidden file
+            * removed it when master scans the metadata periodically (3 days)
+        * Reliable and simple solution:
+            * failures happen as chunk is created on some replica, or heart-beat messages from chunk server get lost.
+            > now some chunk server is out of date or not known to master
+            * reclaimation is merged into regular background scanning of master to amortize the cost.
+            * when frequent deletions is the common workload or the disk resource is tight, the number of replicas and garbage collection are configurable.
+        * Stale Replica Detection
+            * Use chunk version!
+6. Fault Tolerance and Diagnosis
+    * High Availablity
+        * Fast Recovery: resend requests or reconnected whenever experience something goes wrong
+        * Replication
+            * Chunk Replication
+                * Replication re-replication
+                * checksum, parity code
+            * Master Replication
+                * If the process of primary master can't be restarted, monitoring infrastructure outside GFS will start to look for another master
+                * Master has some "shadow" duplicates.
+                * "Shadow" master is read-only during recovery. They have to replay the logs to keep track of all metadata until the new primary master is booted.
+        * Data integrity 
+
+### Learning
+Chaos engineering: [Chaos Engineering: Why the World Needs More Resilient Systems](https://www.youtube.com/watch?v=Khqf0XltR_M&t=3s)
+And [google SRE book on monitoring](https://landing.google.com/sre/sre-book/chapters/monitoring-distributed-systems/)
