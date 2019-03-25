@@ -7,7 +7,7 @@ categories: arts
 Background: [ARTS activity](https://www.zhihu.com/question/301150832)
 
 
-### Leetcode Problem Sharing
+### Algorithm
 
 [Construct Binary Search Tree from Preorder Traversal](https://leetcode.com/problems/construct-binary-search-tree-from-preorder-traversal/)
 
@@ -67,7 +67,7 @@ class Solution(object):
         return root
 {% endhighlight %}
 
-### Reading
+### Review
 
 The Google File System
 
@@ -173,6 +173,8 @@ The Google File System
                 * "Shadow" master is read-only during recovery. They have to replay the logs to keep track of all metadata until the new primary master is booted.
         * Data integrity 
 
-### Learning
+### Tips
+
+### Sharing
 Chaos engineering: [Chaos Engineering: Why the World Needs More Resilient Systems](https://www.youtube.com/watch?v=Khqf0XltR_M&t=3s)
 And [google SRE book on monitoring](https://landing.google.com/sre/sre-book/chapters/monitoring-distributed-systems/)
