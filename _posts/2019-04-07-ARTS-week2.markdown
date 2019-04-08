@@ -1,0 +1,194 @@
+---
+layout: post
+title:  "ARTS Week2"
+date:   2019-04-07 20:00:00 -0400
+categories: arts 
+---
+Background: [ARTS activity](https://www.zhihu.com/question/301150832)
+
+
+### Algorithm
+
+[406. Queue Reconstruction by Height](https://leetcode.com/problems/queue-reconstruction-by-height/)
+
+Input:
+[[7,0], [4,4], [7,1], [5,0], [6,1], [5,2]]
+
+Output:
+[[5,0], [7,0], [5,2], [6,1], [4,4], [7,1]]
+
+Intuition solution:
+
+The second number of the tuple represents the # of people in front of the current person. [5, 0] is the first person because he is the one with smallest height among those there is no one taller than him. Next is [7, 0] since [5, 0] is not taller than him. This gives me the key to tackle this problem: iterate the input, find the right person and put him into the queue. In each iteration, find the one with smallest height among those with correct number of taller people in front.
+
+Since the height is the key, then arrange the people according to their height.
+
+| Height | Person |
+| ----------- | ----------- |
+| 4 | [4, 4] |
+| 5 | [5, 0] |
+| 6 | [6, 1] |
+| 7 | [7, 0], [7, 1] |
+
+Pick [5, 0] and put it into the queue. Then there is one more person in front of [4, 4]. Therefore, the number of taller persons in the queue is needed to be remember for each height category and being updated in each iteration.
+
+{% highlight python %}
+# intuition solution
+class Solution(object):
+    def reconstructQueue(self, people):
+        """
+        :type people: List[List[int]]
+        :rtype: List[List[int]]
+        """
+        # rearrange the people by height
+        hlists = collections.defaultdict(list)
+        for i, p in enumerate(people):
+            height, num = p
+            hlists[height].append([num, i])
+        for h in hlists:
+            hlists[h].sort()
+        # number of taller people in front of people with particular height
+        hcounts = collections.defaultdict(int) 
+
+        rst = []
+        l = len(people)
+        while len(rst) < l:
+            cur_h = 1000000
+            target = -1
+            # iterate people with different height and find the one with least height and right
+            # number of taller people in the front
+            for h in hlists:
+                num, index = hlists[h][0]
+                if num == hcounts[h] and h < cur_h:
+                    cur_h = h
+                    target = index
+            hlists[cur_h].pop(0)
+            if not hlists[cur_h]:
+                del(hlists[cur_h])
+                del(hcounts[cur_h])
+            rst.append(people[target])
+            # update the number of taller people in the front for each height category
+            for h in hlists:
+                if h <= cur_h:
+                    hcounts[h] += 1
+        return rst
+{% endhighlight %}
+
+However, this solution uses O(N^2) time complexity due to the update of the counts. There are some observations from the example input: 
+
+1. the relative position for people with the same height is not affected by other people in the queue, only affected by the second value of the tuple. 
+2. The position of taller person is not affected by those who are shorter.
+
+Therefore, we can reconstruct the queue by placing the people in the same height category each time in height descending order. In each iteration, insert the tuple into position denoted by the second value since the iteration takes place by height descending order so that there is no one shorter than the current height. By doing this, the second value of the tuple can be regared as the real position in the queue. And this improved solution can downscale the time complexity to O(NlogN) according to the primitive array implementation of the programming language.
+
+{% highlight python %}
+class Solution(object):
+    def reconstructQueue(self, people):
+        heights = []
+        hlists = {}
+        for p in people:
+            height, num = p
+            if not height in hlists:
+                hlists[height] = []
+                heights.append(height)
+            hlists[height].append(p)
+        heights.sort(reverse=True)
+        for height in hlists:
+            hlists[height].sort(key=lambda x: x[1])
+        rst = []
+        for h in heights:
+            for p in hlists[h]:
+                rst.insert(p[1], p)
+        return rst
+{% endhighlight %}
+
+### Review
+
+[Advanced Encoding and Decoding Techniques in Go ](https://blog.gopheracademy.com/advent-2016/advanced-encoding-decoding/)
+
+[Code Example](https://github.com/kuangwanjing/designpatterns/tree/master/go/json_adapter)
+
+This excellent post explains the advanced encoding and decoding technique provided by package "encoding/json". The package enables customizing the encoding and decoding of data. This leverages the principle of Golang - Implement an interface other than inherit from a base class. This technique serves for several purposes:
+
+1. smooth minor differences among data schemas with clean code.
+2. provide an elegant way to pack and unpack data with different fields.
+
+[3 techniques used from the post are concluded as the following](https://github.com/kuangwanjing/designpatterns/wiki):
+
+* Customize the encoding and decoding on a single field to fix data structures discrepancy.
+
+* Use double unmarshal to decode a list of similar objects.
+
+* Improved version of double unmarshal
+
+### Tips
+
+Unbuffered channel vs buffered channel in Golang:
+
+In the post [Visualizing Concurrency in Go](https://divan.dev/posts/go_concurrency_visualize/), there is a pattern called Ping-pong. Here we have a channel as a table of the ping-pong game. The ball is an integer variable, and two goroutines-players that ‘hit’ the ball, increasing its value (hits counter):
+
+{% highlight go %}
+    package main
+
+    import "time"
+
+    func main() {
+        var Ball int
+        table := make(chan int)
+        go player(table)
+        go player(table)
+
+        table <- Ball
+        time.Sleep(1 * time.Second)
+        <-table
+    }
+
+    func player(table chan int) {
+        for {
+            ball := <-table
+            ball++
+            time.Sleep(100 * time.Millisecond)
+            table <- ball
+        }
+    }
+{% endhighlight %}
+
+However, if the channel is not received by the main routine explicitly and one of the player routine is abnomally terminated, the other player rountine gets blocked when sending out the signal through the unbuffered channel. At this point, all the routines are not running, the program becomes deadlock. This is because the channel is unbuffered, all the operations are blocked until the channel is received by some routines. The above example uses a timer and receives from the channel after the timer. However, in some cases we want the routines to finish as fast as possible so that timer is not an approriate tecnique. We may want to merge the result from all routines. In this case, a buffered channel is a more appropriate choice over unbuffered channel. Since the sender sends to the channel with a buffer and the receiver receives from the buffer, the sender is not blocked so that deadlock is prevented.
+
+{% highlight go %}
+    package main
+
+    var endSignal = make(chan struct{})
+
+    func routine(routineIndex int, routineName string, token chan int) {
+        for index < 30 {
+            // receive the token
+            <-token
+            // do something
+            // release the token
+            token <- 1
+        }
+
+        endSignal <- struct{}{}
+    }
+
+    func main() {
+        routineNames := []string{"A", "B", "C"}
+
+        token := make(chan int, 1)
+
+        for idx, name := range routineNames {
+            go routine(idx, name, token)
+        }
+
+        token <- 1
+
+        // merge everthing
+        for _ = range routineNames {
+            <-endSignal
+        }
+    }
+{% endhighlight %}
+
+### Sharing
+Chaos engineering: [Bloom filter on web cache](https://www.slideshare.net/felixgessert/bloom-filters-for-web-caching-lightning-talk)
