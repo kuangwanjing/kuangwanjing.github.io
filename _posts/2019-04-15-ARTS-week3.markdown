@@ -1,0 +1,74 @@
+---
+layout: post
+title:  "ARTS Week3"
+date:   2019-04-15 10:38:00 -0400
+categories: arts 
+---
+Background: [ARTS activity](https://www.zhihu.com/question/301150832)
+
+### Algorithm
+
+[64. Minimum Path Sum](https://leetcode.com/problems/minimum-path-sum/)
+
+Classical problem of finding minimum or maximum value with dynamic programming. Solution with 2D array is easy.
+
+The transfer equation is dp(i, j) = min(dp(i-1, j), dp(i, j-1)) + grid(i, j)
+
+
+But now we need to use less memory to calculate the minimum sum of the paths. Examine the transfer equation, the update goes from top to bottom, from left to right. So let's say we have a 1D array, we update it from left to right, using this equation: dp(j) = min(dp(j), dp(j-1)), so that dp(j) represents the path from the top and dp(j-1) represents the path from the left. Then we finally calculate a minimum sum of path from top left to bottom right. Here is the code:
+
+{% highlight java %}
+ public class Solution {
+    public int minPathSum(int[][] grid) {
+        int[] dp = new int[grid[0].length];
+        for (int i = 0; i <= grid.length - 1; i++) {
+            for (int j = 0; j <= grid[0].length - 1; j++) {
+                if(i == 0 && j != 0)
+                    dp[j] = grid[i][j] +  dp[j - 1];
+                else if(j == 0 && i != 0)
+                    dp[j] = grid[i][j] + dp[j];
+                else if(j != 0 && i != 0)
+                    dp[j] = grid[i][j] + Math.min(dp[j], dp[j - 1]);
+                else
+                    dp[j] = grid[i][j];
+            }
+        }
+        return dp[grid[0].length - 1];
+    }
+}
+{% endhighlight %}
+
+Question: What is the difference between this problem and the Knapsack problem?
+
+### Review
+[A visual guide to Go Memory Allocator from scratch (Golang)](https://blog.learngoprogramming.com/a-visual-guide-to-golang-memory-allocator-from-ground-up-e132258453ed)
+
+There are three important parts of OS: Virtualization, Concurrency and Persistency. As for memory, OS abstracts a concept of virtual memory to enable a simple linear memory model to work on every process. That means each process would have a large "virtual" contiguous memory layout to use. Therefore it is the job of each process to manage that memory layout efficiently and avoid the common problems of memory allocation like interal and external fragmentation. And this is what Go Memory Allocator does: to provide a uniform memory allocation management on heap space (since heap is where the dynamic memory is applied from).
+
+In the post, the Go Memory Allocator has to solve the following problems:
+
+1. Avoid internal and external fragmentation of the program's heap.
+
+2. Avoid the use of locks to ensure the high performance of concurrency.
+
+3. Minimize the cost to memory allocation from the OS.
+
+To address problem 1, Go categorizes memory allocation requests into 67 size class so that memory allocation in different size can fall into different categories, the internal fragmentation can be miniminzed. On the other hands, Go uses a data structure of "mspan" and linked list of mspan. By doing in this way, allocated memory are not some contiguous chunks and there is no free memory interspersed with memory in used.
+
+Goroutine is the basic logic unit of the Go program and is scheduled into Logical Processors. Whenever the memory allocation request is made by the routine, this request is captured by the P. To avoid the use of locks, each P owns a memcache which enable the allocation for small objects. Here is to avoid locks amongs different Ps. On the other hand, concurrent lock-free allocations are available when requests differ in size within mcentral.
+
+Go manages the heap in multilevel and captures a large amount of memory allocation request without the need of interacting with the OS. When the object is less than 16 B, mcache answers this call directly. When object is larger than 32 KB, mheap answers this call. When the object is between 16 B to 32 KB, mcentral calculates the right size category and allocates the memory from the corresponding mspan list. Whenever there is no available slots(pages) in mcentral, mheap is involved to allocate empty pages for the demand. Whenever there is not enough slots in mheap, mheaps applies large piece of memory from the OS, which amotizes the cost of talking to the kernel.
+
+Apart from the mentioned problems, Go separate "scan" and "noscan" list of mspan to speed up the Garbage Collection(the no scan list can be revoked without scanning).
+
+In conclusion, the post clearly illustrates the philosophy of addressing the common practical problem mentioned above by a hybrid design like Go memory allocation model: manage the memory in different level, use both contiguous allocation (occur in pages within mspan) and linked list(link list of mspan in mcental and mheap) to minimize the fragmentation. In the meantime, it also guarantees the high performance on currency.
+
+### Tip
+
+FUSE (Filesystem in Userspace) is an interface for userspace programs to export a filesystem to the Linux kernel. When file operation hanlders are fulfilled by the user program and fuse uses this handlers to mount at the file system, all file operations take place under that mount point will be captured by the user program and the user program can do whatever the application wants to serve the user but details are hidden behind.
+
+This is the beauty of the use of indirection. The adaptation from other file-system-liked application to Linux file system can be achieved by applying this indirection.
+
+### Share
+
+[Go Runtime Scheduler](https://speakerdeck.com/retervision/go-runtime-scheduler): since I read about the memory allocator, it is a good chance to read how the routines are scheduled in Go.
