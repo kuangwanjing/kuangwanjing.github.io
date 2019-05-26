@@ -1,0 +1,239 @@
+---
+layout: post
+title:  "ARTS Week4"
+date:   2019-05-25 22:42:00 -0400
+categories: arts 
+---
+Background: [ARTS activity](https://www.zhihu.com/question/301150832)
+
+### Algorithm
+
+[332. Reconstruct Itinerary](https://leetcode.com/problems/reconstruct-itinerary/)
+
+{% highlight java %}
+// 1. Construct a graph where each vertex represents a city and each edge between two vertices represents an itinerary.
+// 2. Use DFS to traverse the graph and build an path from vertex "JFK" and cover all vertices.
+// 3. Since the problem requires to return the lexcially smallest result, dfs goes with a strictly lexcial order. 
+class Solution {
+    HashMap<String, ArrayList<String>> nextCities = new HashMap<>();
+    public List<String> findItinerary(String[][] tickets) {
+        List<String> rst = new ArrayList<>();
+        for (String[] ticket : tickets) {
+            ArrayList<String> next = this.nextCities.getOrDefault(ticket[0], new ArrayList<String>());
+            next.add(ticket[1]);
+            this.nextCities.put(ticket[0], next);
+        }
+        for (String city: nextCities.keySet()) {
+            ArrayList<String> next = this.nextCities.getOrDefault(city, new ArrayList<String>());
+            Collections.sort(next);
+            this.nextCities.put(city, next);
+        }
+        rst.add("JFK");
+        helper(rst, tickets.length+1);
+        return rst;
+    }
+    public boolean helper(List<String> cities, int total) {
+        if (cities.size() == total) {
+            return true;
+        }
+        String current = cities.get(cities.size()-1);
+        ArrayList<String> nc = nextCities.getOrDefault(current, new ArrayList<String>());
+        int count = nc.size();
+        while (count > 0) {
+            String city = nc.remove(0);
+            cities.add(city);
+            this.nextCities.put(current, nc);
+            if (helper(cities, total)) {
+                return true;
+            } else {
+                nc.add(city);
+                cities.remove(cities.size()-1);
+                this.nextCities.put(current, nc);
+            }
+            count--;
+        }
+        return false;
+    }
+} 
+{% endhighlight %} 
+
+### Review
+
+[How to work optimally with relational databases](https://medium.freecodecamp.org/how-to-work-optimally-with-relational-databases-627073f82d56)
+
+Data in SQL database are arranged as tuples which are the gather of data attributes.
+
+Here are some ways the post recommends to optimally use SQL databases:
+
+1. Put Index on important attributes. 
+
+    In essecence, this helps the db engine to avoid scanning the whole table and achieve speed-up on queries. Both composite indices or single index are available. "Order By" can also index to speed up the sorting process.
+
+2. Try to avoid the select on un-indexed fields and select the required field. 
+
+    e.g "select * from ...". This makes the engine go back to the whole table to look for all of the attributes since the index doesn't hold the total information. Tip: use explain statement to get a detailed searching schema about a select statement.
+
+3. Use "Limit" and "Offset" to skip some scanning.
+
+**The above recommendations lie on the very idea that skip the scanning of the whole table can speed up the query.**
+
+4. Partition the table. 
+    
+    When it comes to selecting the un-indexed fields, db needs to look back at the main table to get the data for other fields. As such, minimizing the size of a table and partition it into several smaller tables improve the query performance.
+
+5. Sharding the whole data set.
+
+    Partitioning the table decreases the size of a single table but it takes effect on one single machine and this optimization is limited. However sharding can horizontally split the data set to different machines and achieve scalability. E.g split the data into hot and cold parts.
+
+Tools: 
+
+* Use these to see the execution time of a statement:
+
+    Enable the profiling.
+    > set profiling=1;
+
+    Show the profiling result.
+    > show profiles;
+
+* Explain a statement.
+
+### Tip
+
+The *state pattern* allows an object to alter its behavior when its internal state changes. It is easy to implement state pattern when a language regards function as an object, which means it supports functional programming style. Since the behavior of an object is defined by the function itself, when it comes to the change of the internal state, just make the object point to another function to change its behavior. For example, when we need to write a double number parser, for simplicity, we will have states like START, INTEGER, DOT, DECIMAL, END and ERROR. Each state is represented by a function.
+
+First, we can define our parser data structure and it holds an interal state. It takes a string and outputs a double number if the string is in the correct pattern otherwise output an error.
+
+{% highlight go %}
+    type DoubleParser struct {
+        state State
+        value *FloatValue
+    }
+
+    type FloatValue struct {
+        sign    int
+        integer int
+        decimal float
+    }
+
+    func (p DoubleParser) Parse(input string) (float, error) {
+        p.state = START{}
+        p.value = &FloatValue{}
+        
+        for _, char := range input {
+            newState, err := p.state.run(char, &p.value)
+
+            if err != nil {
+                return 0, err 
+            }
+
+            p.state = newState
+        } 
+
+        return p.value.sign * float.integer + p.value.decimal, nil
+    }
+{% endhighlight %}
+
+The parser is just a simple loop accepting the change of state as it consumes the input and how the state changes is decided by the state itself.
+
+Second encapsulate the state as an interface and define its own behavior.  
+
+{% highlight go %}
+    type State interface 
+    type StateStart struct {}
+    type StateInteger struct {}
+    type StateDecimal struct {}
+    type StateEnd struct {}
+
+    func (s StateStart) Run(input string, val *FloatValue) (state State, error) {
+        if input == "+" {
+            val.sign = 1 
+            return StateInteger{}, nil
+        }
+        if input == "-" {
+            val.sign = -1 
+            return StateInteger{}, nil
+        }
+        if IsDigit(input) {
+            val.integer = CharToInteger(input)
+            return StateInteger{}, nil
+        }
+        if input == "." {
+            return StateDecimal{}, nil
+        }
+        return nil, someError
+    } 
+
+    // define the behavior of other states
+{% endhighlight %}
+
+A similar implementation with Java looks like this:
+
+{% highlight java %}
+public class Parser {
+	static double toDouble(String s) {
+		double sign = 1; // sign of number (either 1 or −1)
+		double value = 0; // current value of the number
+	double power = 0.1; // current power of 10 for
+									  // digits after decimal point
+		int i = 0;
+		final int START = 0;
+		final int INTEGER = 1;
+		final int DECIMAL = 2;
+		final int ERROR = 3;
+		int state = START;
+		char ch; //current character in string
+		while (state != ERROR && i < s.length()) {
+			ch = s.charAt(i++);
+			switch (state) {
+				case START: if (ch == ’.’)
+						state = DECIMAL;
+					else if (ch == ’−’) {
+						sign = −1.0;
+						state = INTEGER;
+					}
+					else if (ch == ’+’)
+						state = INTEGER;
+					else if (Character.isDigit(ch)) {
+						value = ch − ’0’;
+						state = INTEGER;
+					}
+					else
+						state = ERROR;
+					break;
+				case INTEGER: if (ch == ’.’)
+						state = DECIMAL;
+					else if (Character.isDigit(ch))
+						value = 10.0 * value + (ch − ’0’);
+					else {
+						value = 0.0;
+						state = ERROR;
+					}
+					break;
+				case DECIMAL: if (Character.isDigit(ch)) {
+						value += power * (ch − ’0’);
+						power /= 10.0;
+					}
+					else {
+						value = 0.0;
+						state = ERROR;
+					}
+					break;
+				default: System.out.println("Invalid state: " + state);
+			}
+		}
+		return sign * value;
+	}
+
+	public static void main(String[] args) {
+		if (args.length == 1)
+			System.out.println(toDouble(args[0]));
+	}
+} 
+{% endhighlight %}
+
+Comparing the two implementations, we find out that the first version provides a more clear parser since the control of the state is managed by the states whereas the second implementation maintain a central to manage the state transition. When it comes to the more complicated state machines, the decouple of the parser and state management is good for maintaining the right state by given input and easier to debug. And this is one of the fascinating feature of functional programming.
+
+
+### Share
+
+The idea of the tip section comes from the inspiring talk of [Lexical Scanning by Rob Pike](https://www.youtube.com/watch?v=HxaD_trXwRE&list=PLQh4-mYsu1HjzCaq-0ArETsOVf4Nqkzb0&index=2&t=0s)
