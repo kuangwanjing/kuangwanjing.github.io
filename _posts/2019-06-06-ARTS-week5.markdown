@@ -1,0 +1,63 @@
+---
+layout: post
+title:  "ARTS Week5"
+date:   2019-06-06 21:39:00 -0400
+categories: arts 
+---
+Background: [ARTS activity](https://www.zhihu.com/question/301150832)
+
+### Algorithm
+
+
+### Review
+
+[The REST Authenticators](https://towardsdatascience.com/api-authentication-schemes-dc3f73753b29) 
+I learned from the post that authentication is the procedure to determine whether the request is made by a user.
+
+First of all, the current REST service uses different levels of factors to describe a user:
+
+1. Single factor: username and user password;
+
+2. Two factors: along with username and user password, the user is often asked to set some secret questions. It is the user himself know the question and the answer.
+
+3. Multiple factors: Emails and Messages.
+
+4. Biometric: fingerprint...
+
+5. Captchas: determine whether it is a robot.
+
+Service makes use of these factors to authenticate a request, different schemes are used:
+
+1. Basic scheme: examine the user name and user password. Note that this information may be intercepted by anyone with HTTP protocol. The better way to do is to transmit the data via TLS.
+
+2. Token based scheme: Since it is not secure to pass password especially under public network, this scheme avoid passing the password publicly. Service sends a token to the client and then client use the token to communicate with the service. Token get expires after some time. This scheme assumes that the transmission takes place under an unsecure network.
+
+3. API key based scheme: the API key is the secret between the API client and server. Extra effort to manage the keys properly is needed.
+
+4. OAuth (Open Authentication Standard): entrust a third party to get authenticated as the client.
+    This is widely used. The main steps to construct the trust is to: 
+    * Authenticate the client with the server (tell who you are to the server)
+    * Introduce the third party to the server (tell the server a third party is going to be the client's delegate), let the bank be prepared for that third party.
+    * The server sends some secrets to the third party.
+    * The third party takes the client ID, the secrets to to server.
+    * The server authenticate the third party with the information it provides and authentication is successful when all the information is correct.
+
+Note that passing secrets via HTTP rely on TLS to ensure sensitive data is encrypted and would not be intercepted by the hackers.
+
+The main idea of TLS is:
+
+* The client initializes a Hello message to the server, telling it what TLS versions, cipher suites it supports, and generates a client random code.
+
+* The server replies to this message by determing the TLS version, cipher suite, responsing back the TLS certificate it has and attaching a server random code.
+
+* The client checks the certificates with credentials and generate a secret and encrypted with the public key from the server. Then it sends it to the server.
+
+* The server uses its private key to decrypt the secret.
+
+* After both the client and server are ready, they use the same symmetric encryption algorithm to encrypt the message with shared encryption key which is known only by them..
+
+### Tip
+
+
+
+### Share 
